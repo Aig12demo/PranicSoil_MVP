@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
     console.log('Creating new admin auth user...');
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: adminEmail,
-      password: 'Admin@PranicSoil2024',
+      password: 'Test123',
       email_confirm: true,
       user_metadata: {
         full_name: 'Ravi Karuturi',
@@ -115,7 +115,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Admin user created successfully. You can now login with ${adminEmail} and password Admin@PranicSoil2024`,
+        message: `Admin user created successfully. You can now login with ${adminEmail} and password Test123`,
         userId: authData.user.id
       }),
       {
