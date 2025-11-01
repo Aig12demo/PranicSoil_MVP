@@ -23,24 +23,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (userId: string) => {
     console.log('Fetching profile for userId:', userId);
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .or(`user_id.eq.${userId},id.eq.${userId}`)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .or(`user_id.eq.${userId},id.eq.${userId}`)
+        .maybeSingle();
 
-    console.log('Profile fetch result:', { data, error });
+      console.log('Profile fetch result:', { data, error });
 
-    if (error) {
-      console.error('Error fetching profile:', error);
+      if (error) {
+        console.error('Error fetching profile:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        return null;
+      }
+
+      if (!data) {
+        console.warn('No profile found for user:', userId);
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Unexpected error in fetchProfile:', err);
       return null;
     }
-
-    if (!data) {
-      console.warn('No profile found for user:', userId);
-    }
-
-    return data;
   };
 
   const refreshProfile = async () => {

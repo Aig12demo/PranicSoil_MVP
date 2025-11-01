@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { DiagnosticPage } from './pages/DiagnosticPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/confirm-email" element={<ConfirmEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/diagnostics" element={<DiagnosticPage />} />
           <Route
             path="/dashboard"
             element={
