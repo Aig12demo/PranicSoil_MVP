@@ -104,6 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, profileData: Partial<Profile>) => {
     try {
+      console.log('Starting signUp with:', { email, role: profileData.role });
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -118,15 +120,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
 
+      console.log('signUp result:', { data, error });
+
       if (error) {
+        console.error('Supabase auth error:', error);
         throw new Error(error.message || 'Failed to create account');
       }
 
       if (!data.user) {
+        console.error('No user returned from signUp');
         throw new Error('User creation failed - no user returned');
       }
 
+      console.log('User created successfully:', data.user.id);
+
     } catch (err) {
+      console.error('Exception in signUp:', err);
       if (err instanceof Error) {
         throw err;
       }
