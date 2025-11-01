@@ -92,6 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: {
             full_name: profileData.full_name,
             role: profileData.role,
+            phone: profileData.phone,
+            ...profileData,
           },
         },
       });
@@ -102,23 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!data.user) {
         throw new Error('User creation failed - no user returned');
-      }
-
-      if (!data.session) {
-        return;
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        email,
-        ...profileData,
-      });
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        throw new Error(`Failed to create profile: ${profileError.message}. Your account was created - please try logging in.`);
       }
 
     } catch (err) {
