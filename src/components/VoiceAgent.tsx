@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, Mic } from 'lucide-react';
+import { X, Mic, AlertCircle, Info } from 'lucide-react';
 import { DynamicAvatar } from './DynamicAvatar';
 import { useElevenLabsAgent } from '../hooks/useElevenLabsAgent';
+import { checkMicrophonePermission, getBrowserInstructions } from '../utils/mediaPermissions';
 
 interface VoiceAgentProps {
   onClose?: () => void;
@@ -11,11 +12,24 @@ interface VoiceAgentProps {
 
 export function VoiceAgent({ onClose, contextType = 'public', userId = null }: VoiceAgentProps) {
   const [isStarted, setIsStarted] = useState(false);
+  const [permissionChecked, setPermissionChecked] = useState(false);
+  const [showPermissionHelp, setShowPermissionHelp] = useState(false);
   const { status, volume, isConnected, connect, disconnect, error: agentError } = useElevenLabsAgent();
 
   const handleStart = async () => {
-    await connect(contextType, userId);
+    const permissionCheck = await checkMicrophonePermission();
+
+    if (permissionCheck.status === 'unsupported') {
+      return;
+    }
+
+    if (permissionCheck.status === 'denied') {
+      setShowPermissionHelp(true);
+      return;
+    }
+
     setIsStarted(true);
+    await connect(contextType, userId);
   };
 
   const handleStop = () => {
@@ -24,10 +38,72 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
   };
 
   useEffect(() => {
+    const checkPermission = async () => {
+      const result = await checkMicrophonePermission();
+      setPermissionChecked(true);
+      if (result.status === 'denied' && result.error) {
+        setShowPermissionHelp(true);
+      }
+    };
+    checkPermission();
+
     return () => {
       disconnect();
     };
   }, [disconnect]);
+
+  const getErrorDetails = (error: string | null) => {
+    if (!error) return null;
+
+    if (error.includes('PERMISSION_DENIED')) {
+      return {
+        title: 'Microphone Access Denied',
+        message: error.split(': ')[1] || error,
+        showHelp: true,
+      };
+    }
+
+    if (error.includes('NO_MICROPHONE')) {
+      return {
+        title: 'No Microphone Found',
+        message: error.split(': ')[1] || error,
+        showHelp: false,
+      };
+    }
+
+    if (error.includes('MICROPHONE_BUSY')) {
+      return {
+        title: 'Microphone In Use',
+        message: error.split(': ')[1] || error,
+        showHelp: false,
+      };
+    }
+
+    if (error.includes('UNSUPPORTED_BROWSER')) {
+      return {
+        title: 'Browser Not Supported',
+        message: error.split(': ')[1] || error,
+        showHelp: false,
+      };
+    }
+
+    if (error.includes('INSECURE_CONTEXT')) {
+      return {
+        title: 'Secure Connection Required',
+        message: error.split(': ')[1] || error,
+        showHelp: false,
+      };
+    }
+
+    return {
+      title: 'Connection Error',
+      message: error,
+      showHelp: false,
+    };
+  };
+
+  const errorDetails = getErrorDetails(agentError);
+  const browserInfo = getBrowserInstructions();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -66,7 +142,10 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
 
           {isStarted && (
             <div className="mb-8">
-              <DynamicAvatar status={status} volume={volume} />
+              <DynamicAvatar
+                status={status === 'connected' ? 'listening' : status as 'idle' | 'connecting' | 'listening' | 'processing' | 'speaking' | 'error'}
+                volume={volume}
+              />
             </div>
           )}
 
@@ -104,11 +183,44 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
               </div>
             )}
 
-            {status === 'error' && (
-              <div className="text-center">
-                <p className="text-red-600 font-medium">
-                  Error: {agentError || 'Connection failed'}
-                </p>
+            {status === 'error' && errorDetails && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-red-900 font-semibold mb-1">{errorDetails.title}</p>
+                    <p className="text-red-800 text-sm mb-3">{errorDetails.message}</p>
+                    {errorDetails.showHelp && (
+                      <button
+                        onClick={() => setShowPermissionHelp(true)}
+                        className="text-red-700 text-sm underline hover:text-red-900"
+                      >
+                        How do I enable microphone access?
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showPermissionHelp && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex gap-3">
+                  <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-blue-900 font-semibold mb-2">Enable Microphone Access in {browserInfo.browser}</p>
+                    <p className="text-blue-800 text-sm mb-3">{browserInfo.instructions}</p>
+                    <p className="text-blue-800 text-sm mb-3">
+                      After enabling microphone access, refresh this page and try again.
+                    </p>
+                    <button
+                      onClick={() => setShowPermissionHelp(false)}
+                      className="text-blue-700 text-sm font-medium hover:text-blue-900"
+                    >
+                      Got it
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -127,10 +239,11 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
             {!isStarted ? (
               <button
                 onClick={handleStart}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg flex items-center gap-2"
+                disabled={!permissionChecked}
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 <Mic className="w-5 h-5" />
-                Start Voice Conversation
+                {permissionChecked ? 'Start Voice Conversation' : 'Checking permissions...'}
               </button>
             ) : (
               <button

@@ -77,10 +77,38 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
     }
   }, [playAudioChunk]);
 
-  const connect = useCallback(async (contextType: 'public' | 'authenticated', userId?: string | null) => {
+  const connect = useCallback(async (contextType: 'public' | 'authenticated', _userId?: string | null) => {
     try {
       setStatus('connecting');
       setError(null);
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('UNSUPPORTED_BROWSER: Your browser does not support microphone access. Please use Chrome, Firefox, Safari, or Edge.');
+      }
+
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        throw new Error('INSECURE_CONTEXT: Microphone access requires HTTPS or localhost.');
+      }
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
+      } catch (err) {
+        if (err instanceof Error) {
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            throw new Error('PERMISSION_DENIED: Microphone access was denied. Please click "Allow" when your browser asks for permission, or enable it in your browser settings.');
+          }
+          if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            throw new Error('NO_MICROPHONE: No microphone found. Please connect a microphone and try again.');
+          }
+          if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+            throw new Error('MICROPHONE_BUSY: Your microphone is being used by another application. Please close other applications and try again.');
+          }
+          throw new Error(`MICROPHONE_ERROR: ${err.message}`);
+        }
+        throw new Error('MICROPHONE_ERROR: Failed to access microphone.');
+      }
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
@@ -112,9 +140,6 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
       const { signed_url, session_id } = await response.json();
       sessionIdRef.current = session_id;
       startTimeRef.current = Date.now();
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
 
       const ws = new WebSocket(signed_url);
       wsRef.current = ws;
@@ -167,8 +192,10 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
 
     } catch (err) {
       console.error('Connection error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to connect');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to connect';
+      setError(errorMessage);
       setStatus('error');
+      cleanup();
     }
   }, [playNextChunk]);
 
