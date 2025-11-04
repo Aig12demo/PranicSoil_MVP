@@ -1,22 +1,20 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Mic } from 'lucide-react';
 import { DynamicAvatar } from './DynamicAvatar';
 import { useElevenLabsAgent } from '../hooks/useElevenLabsAgent';
 
 interface VoiceAgentProps {
   onClose?: () => void;
+  contextType?: 'public' | 'authenticated';
+  userId?: string | null;
 }
 
-export function VoiceAgent({ onClose }: VoiceAgentProps) {
-  const [agentId, setAgentId] = useState('');
+export function VoiceAgent({ onClose, contextType = 'public', userId = null }: VoiceAgentProps) {
   const [isStarted, setIsStarted] = useState(false);
   const { status, volume, isConnected, connect, disconnect, error: agentError } = useElevenLabsAgent();
 
   const handleStart = async () => {
-    if (!agentId.trim()) {
-      return;
-    }
-    await connect(agentId.trim());
+    await connect(contextType, userId);
     setIsStarted(true);
   };
 
@@ -44,25 +42,24 @@ export function VoiceAgent({ onClose }: VoiceAgentProps) {
         )}
 
         <div className="flex flex-col items-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">ElevenLabs Voice Agent</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {contextType === 'public' ? 'Talk to Pranic Soil' : 'AI Agricultural Advisor'}
+          </h2>
           <p className="text-gray-600 mb-4 text-center">
-            Connect to your ElevenLabs conversational AI agent
+            {contextType === 'public'
+              ? 'Have a conversation about our services and how we can help you'
+              : 'Get personalized advice for your farming operation'}
           </p>
 
           {!isStarted && (
-            <div className="w-full mb-8">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Agent ID
-              </label>
-              <input
-                type="text"
-                value={agentId}
-                onChange={(e) => setAgentId(e.target.value)}
-                placeholder="Enter your ElevenLabs Agent ID"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-              <p className="mt-2 text-xs text-gray-500">
-                Find your Agent ID in the ElevenLabs dashboard
+            <div className="w-full mb-8 text-center">
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mic className="w-12 h-12 text-green-600" />
+              </div>
+              <p className="text-sm text-gray-600">
+                {contextType === 'public'
+                  ? 'Start a voice conversation to learn about our services for gardeners, farmers, and ranchers.'
+                  : 'Your AI advisor has access to your profile and can provide personalized recommendations.'}
               </p>
             </div>
           )}
@@ -118,7 +115,9 @@ export function VoiceAgent({ onClose }: VoiceAgentProps) {
             {isConnected && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <p className="text-sm text-green-800">
-                  <strong>Connected:</strong> Your ElevenLabs agent is active and listening for agricultural consultation requests.
+                  <strong>Connected:</strong> {contextType === 'public'
+                    ? 'Ask me anything about Pranic Soil services!'
+                    : 'I have access to your profile and am ready to provide personalized advice.'}
                 </p>
               </div>
             )}
@@ -128,15 +127,15 @@ export function VoiceAgent({ onClose }: VoiceAgentProps) {
             {!isStarted ? (
               <button
                 onClick={handleStart}
-                disabled={!agentId.trim()}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg flex items-center gap-2"
               >
-                Start Conversation
+                <Mic className="w-5 h-5" />
+                Start Voice Conversation
               </button>
             ) : (
               <button
                 onClick={handleStop}
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg"
               >
                 End Conversation
               </button>

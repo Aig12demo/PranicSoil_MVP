@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
 type AgentStatus = 'idle' | 'connecting' | 'connected' | 'listening' | 'speaking' | 'error';
 
@@ -6,7 +7,7 @@ interface UseElevenLabsAgentReturn {
   status: AgentStatus;
   volume: number;
   isConnected: boolean;
-  connect: (agentId: string) => Promise<void>;
+  connect: (contextType: 'public' | 'authenticated', userId?: string | null) => Promise<void>;
   disconnect: () => void;
   error: string | null;
 }
@@ -23,6 +24,8 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
   const audioQueueRef = useRef<ArrayBuffer[]>([]);
   const isPlayingRef = useRef(false);
   const volumeIntervalRef = useRef<number | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const startTimeRef = useRef<number | null>(null);
 
   const playAudioChunk = useCallback(async (audioData: ArrayBuffer) => {
     if (!audioContextRef.current) {
@@ -74,20 +77,30 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
     }
   }, [playAudioChunk]);
 
-  const connect = useCallback(async (agentId: string) => {
+  const connect = useCallback(async (contextType: 'public' | 'authenticated', userId?: string | null) => {
     try {
       setStatus('connecting');
       setError(null);
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (contextType === 'authenticated') {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      }
+
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/elevenlabs-agent?action=get-signed-url`,
+        `${supabaseUrl}/functions/v1/elevenlabs-agent`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ agentId }),
+          headers,
+          body: JSON.stringify({ action: 'get-signed-url' }),
         }
       );
 
@@ -96,7 +109,9 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
         throw new Error(errorData.error || 'Failed to get signed URL');
       }
 
-      const { signed_url } = await response.json();
+      const { signed_url, session_id } = await response.json();
+      sessionIdRef.current = session_id;
+      startTimeRef.current = Date.now();
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
@@ -193,7 +208,39 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
     setVolume(0);
   };
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
+    if (sessionIdRef.current && startTimeRef.current) {
+      const durationSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const { data: { session } } = await supabase.auth.getSession();
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
+        await fetch(
+          `${supabaseUrl}/functions/v1/elevenlabs-agent`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              action: 'end-conversation',
+              session_id: sessionIdRef.current,
+              duration_seconds: durationSeconds,
+            }),
+          }
+        );
+      } catch (err) {
+        console.error('Error ending conversation:', err);
+      }
+    }
+
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -201,6 +248,8 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
     cleanup();
     setIsConnected(false);
     setStatus('idle');
+    sessionIdRef.current = null;
+    startTimeRef.current = null;
   }, []);
 
   useEffect(() => {

@@ -11,7 +11,8 @@ import {
   Upload,
   Calendar,
   DollarSign,
-  Shield
+  Shield,
+  Mic
 } from 'lucide-react';
 import { ChatInterface } from '../components/ChatInterface';
 import { ProfileSection } from '../components/ProfileSection';
@@ -20,6 +21,7 @@ import { DocumentsList } from '../components/DocumentsList';
 import { ServiceAgreements } from '../components/ServiceAgreements';
 import { AdminCustomerList } from '../components/AdminCustomerList';
 import { AdminCustomerView } from '../components/AdminCustomerView';
+import { VoiceAgent } from '../components/VoiceAgent';
 
 type TabType = 'overview' | 'profile' | 'documents' | 'todos' | 'chat' | 'agreements' | 'admin';
 
@@ -28,6 +30,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [viewingCustomerId, setViewingCustomerId] = useState<string | null>(null);
+  const [showVoiceAgent, setShowVoiceAgent] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -137,6 +140,13 @@ export function DashboardPage() {
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
                   <div className="space-y-3">
                     <button
+                      onClick={() => setShowVoiceAgent(true)}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    >
+                      <Mic className="w-5 h-5" />
+                      Voice Consultation
+                    </button>
+                    <button
                       onClick={() => setActiveTab('chat')}
                       className="w-full flex items-center gap-3 px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
                     >
@@ -180,6 +190,14 @@ export function DashboardPage() {
           )}
         </div>
       </main>
+
+      {showVoiceAgent && (
+        <VoiceAgent
+          onClose={() => setShowVoiceAgent(false)}
+          contextType="authenticated"
+          userId={profile?.user_id || null}
+        />
+      )}
     </div>
   );
 }

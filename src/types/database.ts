@@ -120,3 +120,16 @@ export interface Document {
   description?: string;
   uploaded_at?: string;
 }
+
+export interface VoiceConversation {
+  id: string;
+  profile_id?: string;
+  session_id: string;
+  context_type: 'public' | 'authenticated';
+  duration_seconds: number;
+  started_at: string;
+  ended_at?: string;
+  user_role?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}

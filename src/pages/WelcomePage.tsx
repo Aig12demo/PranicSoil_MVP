@@ -149,7 +149,10 @@ export function WelcomePage() {
       </footer>
 
       {showVoiceAgent && (
-        <VoiceAgent onClose={() => setShowVoiceAgent(false)} />
+        <VoiceAgent
+          onClose={() => setShowVoiceAgent(false)}
+          contextType="public"
+        />
       )}
     </div>
   );
