@@ -75,33 +75,33 @@ export function getBrowserInstructions(): { browser: string; instructions: strin
   if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
     return {
       browser: 'Chrome',
-      instructions: 'Click the lock icon in the address bar, find "Microphone" and set it to "Allow".',
+      instructions: 'Click the site information button (to the left of the URL) or the camera/microphone icon in the address bar. Find "Microphone" and set it to "Allow".',
     };
   }
 
   if (userAgent.includes('firefox')) {
     return {
       browser: 'Firefox',
-      instructions: 'Click the lock icon in the address bar, find "Use the Microphone" and select "Allow".',
+      instructions: 'Click the site information icon (to the left of the URL) or the microphone icon in the address bar. Find "Use the Microphone" and select "Allow".',
     };
   }
 
   if (userAgent.includes('safari')) {
     return {
       browser: 'Safari',
-      instructions: 'Go to Safari > Settings > Websites > Microphone, and allow access for this site.',
+      instructions: 'Click "Safari" in the menu bar, then Settings > Websites > Microphone, and allow access for this site.',
     };
   }
 
   if (userAgent.includes('edg')) {
     return {
       browser: 'Edge',
-      instructions: 'Click the lock icon in the address bar, find "Microphone" and set it to "Allow".',
+      instructions: 'Click the site information button (to the left of the URL) or the camera/microphone icon in the address bar. Find "Microphone" and set it to "Allow".',
     };
   }
 
   return {
     browser: 'your browser',
-    instructions: 'Check your browser settings to allow microphone access for this site.',
+    instructions: 'Look for a camera or microphone icon in the address bar, or click the site information button near the URL to allow microphone access.',
   };
 }

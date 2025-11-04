@@ -208,14 +208,18 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
                 <div className="flex gap-3">
                   <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-blue-900 font-semibold mb-2">Enable Microphone Access in {browserInfo.browser}</p>
-                    <p className="text-blue-800 text-sm mb-3">{browserInfo.instructions}</p>
+                    <p className="text-blue-900 font-semibold mb-2">Microphone Access Required</p>
                     <p className="text-blue-800 text-sm mb-3">
-                      After enabling microphone access, refresh this page and try again.
+                      To use voice chat, you need to allow microphone access for this site.
+                    </p>
+                    <p className="text-blue-800 text-sm mb-1 font-medium">How to enable in {browserInfo.browser}:</p>
+                    <p className="text-blue-800 text-sm mb-3">{browserInfo.instructions}</p>
+                    <p className="text-blue-700 text-sm mb-3 italic">
+                      After changing permissions, close this dialog and click "Start Voice Conversation" again.
                     </p>
                     <button
                       onClick={() => setShowPermissionHelp(false)}
-                      className="text-blue-700 text-sm font-medium hover:text-blue-900"
+                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       Got it
                     </button>
