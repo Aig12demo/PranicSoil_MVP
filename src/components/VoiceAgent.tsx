@@ -11,10 +11,37 @@ interface VoiceAgentProps {
 }
 
 export function VoiceAgent({ onClose, contextType = 'public', userId = null }: VoiceAgentProps) {
+  // 🚨 DEBUG: Log component props on every render
+  console.log(`%c🎭 VoiceAgent Component Rendered`, 'background: #ff00ff; color: #fff; font-weight: bold; padding: 4px 8px;');
+  console.log(`   contextType: ${contextType}`);
+  console.log(`   userId: ${userId}`);
+  console.log(`   onClose: ${typeof onClose}`);
+  
   const [isStarted, setIsStarted] = useState(false);
   const [showPermissionRequest, setShowPermissionRequest] = useState(true);
   const [showPermissionHelp, setShowPermissionHelp] = useState(false);
+  const [wasConnected, setWasConnected] = useState(false);
   const { status, volume, isConnected, connect, disconnect, error: agentError } = useElevenLabsAgent();
+
+  // Track if we ever successfully connected
+  useEffect(() => {
+    if (isConnected) {
+      setWasConnected(true);
+    }
+  }, [isConnected]);
+
+  // Log helpful reminder on mount
+  useEffect(() => {
+    console.log('%c🎤 Voice Agent Component MOUNTED', 'font-size: 16px; font-weight: bold; color: #10b981; background: #000; padding: 4px;');
+    console.log(`   Context: ${contextType}, UserId: ${userId}`);
+    console.log('%cWatch this console for detailed connection info!', 'color: #6b7280;');
+    console.log('%cIf the connection closes quickly, look for "🔌 Close code" and "Close reason" messages', 'color: #6b7280;');
+    
+    return () => {
+      console.log('%c🎤 Voice Agent Component UNMOUNTING', 'font-size: 16px; font-weight: bold; color: #ff0000; background: #000; padding: 4px;');
+      console.log(`   Was using context: ${contextType}`);
+    };
+  }, [contextType, userId]);
 
   const handleRequestPermission = async () => {
     setShowPermissionRequest(false);
@@ -201,6 +228,23 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
               </div>
             )}
 
+            {status === 'idle' && wasConnected && isStarted && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-yellow-900 font-semibold mb-1">Connection Closed</p>
+                    <p className="text-yellow-800 text-sm mb-3">
+                      The voice conversation ended unexpectedly. This usually happens due to timeout settings.
+                    </p>
+                    <p className="text-yellow-700 text-sm">
+                      Check the browser console (F12) for details, or try speaking sooner after clicking "Allow Microphone Access".
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {status === 'error' && errorDetails && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex gap-3">
@@ -271,12 +315,20 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
                 <Mic className="w-5 h-5" />
                 Allow Microphone Access
               </button>
-            ) : isStarted ? (
+            ) : isStarted && isConnected ? (
               <button
                 onClick={handleStop}
                 className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg"
               >
                 End Conversation
+              </button>
+            ) : isStarted && wasConnected && !isConnected ? (
+              <button
+                onClick={handleRequestPermission}
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg flex items-center gap-2"
+              >
+                <Mic className="w-5 h-5" />
+                Try Again
               </button>
             ) : null}
           </div>

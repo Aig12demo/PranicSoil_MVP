@@ -8,7 +8,8 @@ const corsHeaders = {
 };
 
 const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
-const ELEVENLABS_AGENT_ID = Deno.env.get("ELEVENLABS_AGENT_ID") || "";
+const ELEVENLABS_PUBLIC_AGENT_ID = Deno.env.get("ELEVENLABS_PUBLIC_AGENT_ID") || "";
+const ELEVENLABS_AUTHENTICATED_AGENT_ID = Deno.env.get("ELEVENLABS_AUTHENTICATED_AGENT_ID") || "";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -23,18 +24,27 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const requestBody = await req.json();
+    const { action, contextType: requestedContext } = requestBody;
+    
     const authHeader = req.headers.get("Authorization");
     let userId: string | null = null;
     let userProfile: any = null;
-    let contextType = "public";
+    
+    // 🔑 Use explicitly passed contextType from frontend, default to "public"
+    let contextType = requestedContext || "public";
+    
+    console.log('📥 Requested context type:', requestedContext);
+    console.log('🔍 Auth header present:', !!authHeader);
 
-    if (authHeader) {
+    // Only fetch user data if authenticated context is requested
+    if (contextType === "authenticated" && authHeader) {
       const token = authHeader.replace("Bearer ", "");
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       
       if (!authError && user) {
         userId = user.id;
-        contextType = "authenticated";
+        console.log('✅ Authenticated user:', userId);
 
         const { data: profile } = await supabase
           .from("profiles")
@@ -68,13 +78,24 @@ Deno.serve(async (req: Request) => {
             userProfile.roleDetails = roleProfile;
           }
         }
+      } else {
+        console.warn('⚠️ Authenticated context requested but no valid user found');
       }
+    } else {
+      console.log('📢 Using PUBLIC context');
     }
-
-    const { action } = await req.json();
 
     if (action === "get-signed-url") {
       const sessionId = crypto.randomUUID();
+
+      // Select the appropriate agent ID based on context
+      const agentId = contextType === "public" 
+        ? ELEVENLABS_PUBLIC_AGENT_ID 
+        : ELEVENLABS_AUTHENTICATED_AGENT_ID;
+
+      console.log('Context type:', contextType);
+      console.log('Using agent:', contextType === "public" ? "PUBLIC" : "AUTHENTICATED");
+      console.log('Agent ID:', agentId);
 
       let conversationContext = "";
       if (contextType === "public") {
@@ -94,8 +115,11 @@ Deno.serve(async (req: Request) => {
         conversationContext += `Provide personalized advice based on their specific situation. Be helpful, knowledgeable, and supportive. Keep responses concise and actionable.`;
       }
 
+      console.log('API Key exists:', !!ELEVENLABS_API_KEY);
+      console.log('API Key length:', ELEVENLABS_API_KEY?.length || 0);
+
       const elevenLabsResponse = await fetch(
-        `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${ELEVENLABS_AGENT_ID}`,
+        `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${agentId}`,
         {
           method: "GET",
           headers: {
@@ -104,23 +128,33 @@ Deno.serve(async (req: Request) => {
         }
       );
 
+      console.log('ElevenLabs response status:', elevenLabsResponse.status);
+
       if (!elevenLabsResponse.ok) {
         const errorText = await elevenLabsResponse.text();
-        throw new Error(`ElevenLabs API error: ${errorText}`);
+        console.error('ElevenLabs error response:', errorText);
+        throw new Error(`ElevenLabs API error (${elevenLabsResponse.status}): ${errorText}`);
       }
 
       const { signed_url } = await elevenLabsResponse.json();
 
-      if (userId && userProfile) {
-        await supabase.from("voice_conversations").insert({
-          profile_id: userProfile.id,
-          session_id: sessionId,
-          context_type: contextType,
-          user_role: userProfile.role,
-          metadata: {
-            conversation_context: conversationContext,
-          },
-        });
+      if (userId && userProfile && userProfile.id) {
+        try {
+          await supabase.from("voice_conversations").insert({
+            profile_id: userProfile.id,
+            session_id: sessionId,
+            context_type: contextType,
+            user_role: userProfile.role,
+            metadata: {
+              conversation_context: conversationContext,
+            },
+          });
+        } catch (insertError) {
+          console.error('Error logging voice conversation:', insertError);
+          // Don't fail the request if logging fails
+        }
+      } else {
+        console.log('Skipping conversation log for anonymous user');
       }
 
       return new Response(

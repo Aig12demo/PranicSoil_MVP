@@ -4,8 +4,14 @@ import { supabase } from '../lib/supabase';
 import { Document } from '../types/database';
 import { FileText, Upload, Loader2, Download, X } from 'lucide-react';
 
-export function DocumentsList() {
+interface DocumentsListProps {
+  profileId?: string;
+  isAdminView?: boolean;
+}
+
+export function DocumentsList({ profileId, isAdminView }: DocumentsListProps = {}) {
   const { profile } = useAuth();
+  const targetProfileId = profileId || profile?.id;
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -18,15 +24,15 @@ export function DocumentsList() {
 
   useEffect(() => {
     loadDocuments();
-  }, [profile]);
+  }, [targetProfileId]);
 
   const loadDocuments = async () => {
-    if (!profile) return;
+    if (!targetProfileId) return;
 
     const { data, error } = await supabase
       .from('documents')
       .select('*')
-      .eq('profile_id', profile.id)
+      .eq('profile_id', targetProfileId)
       .order('uploaded_at', { ascending: false });
 
     if (!error && data) {
@@ -36,13 +42,13 @@ export function DocumentsList() {
   };
 
   const handleUpload = async () => {
-    if (!profile || !uploadData.file_name.trim() || !uploadData.file_url.trim()) return;
+    if (!targetProfileId || !uploadData.file_name.trim() || !uploadData.file_url.trim()) return;
 
     setUploading(true);
 
     try {
       const { error } = await supabase.from('documents').insert({
-        profile_id: profile.id,
+        profile_id: targetProfileId,
         file_name: uploadData.file_name,
         file_url: uploadData.file_url,
         description: uploadData.description,
@@ -84,16 +90,18 @@ export function DocumentsList() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
           <p className="text-gray-600 mt-2">
-            Upload soil tests, photos, and farm plans for personalized advice
+            {isAdminView ? 'Manage customer documents' : 'Upload soil tests, photos, and farm plans for personalized advice'}
           </p>
         </div>
-        <button
-          onClick={() => setShowUpload(!showUpload)}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          <Upload className="w-5 h-5" />
-          Upload Document
-        </button>
+        {(isAdminView || !isAdminView) && (
+          <button
+            onClick={() => setShowUpload(!showUpload)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Upload className="w-5 h-5" />
+            Upload Document
+          </button>
+        )}
       </div>
 
       {showUpload && (
@@ -198,12 +206,14 @@ export function DocumentsList() {
                   >
                     <Download className="w-5 h-5" />
                   </a>
-                  <button
-                    onClick={() => handleDelete(doc.id)}
-                    className="text-gray-400 hover:text-red-600"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  {(isAdminView || !isAdminView) && (
+                    <button
+                      onClick={() => handleDelete(doc.id)}
+                      className="text-gray-400 hover:text-red-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               </div>
               <h3 className="font-semibold text-gray-900 mb-2 truncate">{doc.file_name}</h3>

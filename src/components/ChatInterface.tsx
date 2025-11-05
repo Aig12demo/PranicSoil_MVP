@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Mic, MicOff, Phone } from 'lucide-react';
+import { Send, Phone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { DynamicAvatar } from './DynamicAvatar';
-import { useVoiceChat } from '../hooks/useVoiceChat';
 import { VoiceAgent } from './VoiceAgent';
+import { supabase } from '../lib/supabase';
 
 interface Message {
   id: string;
@@ -12,37 +11,56 @@ interface Message {
   timestamp: Date;
 }
 
-export function ChatInterface() {
+interface ChatInterfaceProps {
+  profileId?: string;
+  isAdminView?: boolean;
+}
+
+export function ChatInterface({ profileId, isAdminView }: ChatInterfaceProps = {}) {
   const { profile } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      type: 'assistant',
-      content: `Hello ${profile?.full_name || 'there'}! I'm your AI agricultural consultant. I have access to your profile as a ${profile?.role} and can help you with personalized advice about soil health, crop planning, and best practices for your operation. What would you like to discuss today?`,
-      timestamp: new Date(),
-    },
-  ]);
+  const targetProfileId = profileId || profile?.id;
+  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    if (isAdminView && targetProfileId) {
+      loadChatHistory();
+    } else {
+      setMessages([
+        {
+          id: '1',
+          type: 'assistant',
+          content: `Hello ${profile?.full_name || 'there'}! I'm your AI agricultural consultant. I have access to your profile as a ${profile?.role} and can help you with personalized advice about soil health, crop planning, and best practices for your operation. What would you like to discuss today?`,
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  }, [isAdminView, targetProfileId]);
+
+  const loadChatHistory = async () => {
+    if (!targetProfileId) return;
+
+    const { data, error } = await supabase
+      .from('chat_history')
+      .select('*')
+      .eq('profile_id', targetProfileId)
+      .order('created_at', { ascending: true });
+
+    if (!error && data) {
+      setChatHistory(data);
+      const historyMessages: Message[] = data.map((msg) => ({
+        id: msg.id,
+        type: msg.message_type as 'user' | 'assistant',
+        content: msg.message_content,
+        timestamp: new Date(msg.created_at),
+      }));
+      setMessages(historyMessages);
+    }
+  };
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showVoiceAgent, setShowVoiceAgent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const {
-    status,
-    volume,
-    isListening,
-    startListening,
-    stopListening,
-    speak,
-    transcript,
-    error: voiceError,
-  } = useVoiceChat();
-
-  useEffect(() => {
-    if (transcript) {
-      setInputMessage(transcript);
-    }
-  }, [transcript]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,10 +80,6 @@ export function ChatInterface() {
     setInputMessage('');
     setIsLoading(true);
 
-    if (isListening) {
-      stopListening();
-    }
-
     setTimeout(() => {
       const responseText = `This is a placeholder response. In production, this would be connected to an AI service that has context about your ${profile?.role} operation, your uploaded documents, and our agricultural knowledge base. I would provide personalized advice based on your specific situation.`;
 
@@ -77,8 +91,6 @@ export function ChatInterface() {
       };
       setMessages((prev) => [...prev, assistantMessage]);
       setIsLoading(false);
-
-      speak(responseText);
     }, 1000);
   };
 
@@ -89,44 +101,31 @@ export function ChatInterface() {
     }
   };
 
-  const toggleVoiceInput = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
-  };
-
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)]">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">AI Assistant</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isAdminView ? 'Chat History' : 'AI Assistant'}
+          </h1>
           <p className="text-gray-600 mt-2">
-            Get personalized advice for your {profile?.role} operation
+            {isAdminView 
+              ? 'View customer chat history' 
+              : `Get personalized advice for your ${profile?.role} operation`}
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        {!isAdminView && (
           <button
             onClick={() => setShowVoiceAgent(true)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            title="Start voice call with AI advisor"
           >
             <Phone className="w-4 h-4" />
             Voice Call
           </button>
-          <DynamicAvatar
-            status={status}
-            volume={volume}
-            userAvatarUrl={profile?.avatar_url}
-          />
-        </div>
+        )}
       </div>
 
-      {voiceError && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {voiceError}
-        </div>
-      )}
 
       <div className="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -167,54 +166,44 @@ export function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="border-t border-gray-200 p-4">
-          <div className="flex gap-2">
-            <button
-              onClick={toggleVoiceInput}
-              className={`p-3 rounded-lg transition-colors ${
-                isListening
-                  ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              title={isListening ? 'Stop listening' : 'Start voice input'}
-            >
-              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-            </button>
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type your message or use voice input..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isLoading}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-            >
-              <Send className="w-5 h-5" />
-              Send
-            </button>
+        {!isAdminView && (
+          <div className="border-t border-gray-200 p-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message..."
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || isLoading}
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                <Send className="w-5 h-5" />
+                Send
+              </button>
+            </div>
           </div>
-          {isListening && (
-            <p className="text-sm text-green-600 mt-2 flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-600 rounded-full animate-pulse" />
-              Listening... Speak now
+        )}
+        {isAdminView && (
+          <div className="border-t border-gray-200 p-4 bg-gray-50">
+            <p className="text-sm text-gray-600 text-center">
+              Admin view mode - Chat history is read-only
             </p>
-          )}
-          {status === 'speaking' && (
-            <p className="text-sm text-blue-600 mt-2 flex items-center gap-2">
-              <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
-              Speaking...
-            </p>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {showVoiceAgent && (
-        <VoiceAgent onClose={() => setShowVoiceAgent(false)} />
+        <VoiceAgent 
+          onClose={() => setShowVoiceAgent(false)}
+          contextType="authenticated"
+          userId={profile?.user_id || null}
+        />
       )}
     </div>
   );

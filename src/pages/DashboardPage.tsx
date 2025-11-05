@@ -6,7 +6,6 @@ import {
   User,
   FileText,
   CheckSquare,
-  MessageSquare,
   LogOut,
   Upload,
   Calendar,
@@ -14,7 +13,6 @@ import {
   Shield,
   Mic
 } from 'lucide-react';
-import { ChatInterface } from '../components/ChatInterface';
 import { ProfileSection } from '../components/ProfileSection';
 import { TodoList } from '../components/TodoList';
 import { DocumentsList } from '../components/DocumentsList';
@@ -23,7 +21,7 @@ import { AdminCustomerList } from '../components/AdminCustomerList';
 import { AdminCustomerView } from '../components/AdminCustomerView';
 import { VoiceAgent } from '../components/VoiceAgent';
 
-type TabType = 'overview' | 'profile' | 'documents' | 'todos' | 'chat' | 'agreements' | 'admin';
+type TabType = 'overview' | 'profile' | 'documents' | 'todos' | 'agreements' | 'admin';
 
 export function DashboardPage() {
   const { profile, signOut } = useAuth();
@@ -43,7 +41,6 @@ export function DashboardPage() {
     { id: 'documents' as TabType, label: 'Documents', icon: FileText },
     { id: 'todos' as TabType, label: 'To-Do List', icon: CheckSquare },
     { id: 'agreements' as TabType, label: 'Agreements', icon: DollarSign },
-    { id: 'chat' as TabType, label: 'AI Assistant', icon: MessageSquare },
     ...(profile?.role === 'admin' ? [{ id: 'admin' as TabType, label: 'Admin', icon: Shield }] : []),
   ];
 
@@ -147,13 +144,6 @@ export function DashboardPage() {
                       Voice Consultation
                     </button>
                     <button
-                      onClick={() => setActiveTab('chat')}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
-                    >
-                      <MessageSquare className="w-5 h-5" />
-                      Chat with AI Assistant
-                    </button>
-                    <button
                       onClick={() => setActiveTab('documents')}
                       className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
                     >
@@ -175,7 +165,6 @@ export function DashboardPage() {
           {activeTab === 'documents' && <DocumentsList />}
           {activeTab === 'todos' && <TodoList />}
           {activeTab === 'agreements' && <ServiceAgreements />}
-          {activeTab === 'chat' && <ChatInterface />}
           {activeTab === 'admin' && profile?.role === 'admin' && (
             viewingCustomerId ? (
               <AdminCustomerView

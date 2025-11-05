@@ -2,31 +2,47 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ServiceAgreement, Invoice } from '../types/database';
-import { FileText, DollarSign, Calendar, Loader2 } from 'lucide-react';
+import { FileText, DollarSign, Calendar, Loader2, Plus, Edit, Trash2 } from 'lucide-react';
 
-export function ServiceAgreements() {
+interface ServiceAgreementsProps {
+  profileId?: string;
+  isAdminView?: boolean;
+}
+
+export function ServiceAgreements({ profileId, isAdminView }: ServiceAgreementsProps = {}) {
   const { profile } = useAuth();
+  const targetProfileId = profileId || profile?.id;
   const [agreements, setAgreements] = useState<ServiceAgreement[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showNewAgreement, setShowNewAgreement] = useState(false);
+  const [editingAgreement, setEditingAgreement] = useState<string | null>(null);
+  const [newAgreement, setNewAgreement] = useState({
+    agreement_type: '',
+    status: 'pending' as 'active' | 'pending' | 'completed' | 'cancelled',
+    start_date: '',
+    end_date: '',
+    total_amount: '',
+    notes: '',
+  });
 
   useEffect(() => {
     loadData();
-  }, [profile]);
+  }, [targetProfileId]);
 
   const loadData = async () => {
-    if (!profile) return;
+    if (!targetProfileId) return;
 
     const [agreementsResponse, invoicesResponse] = await Promise.all([
       supabase
         .from('service_agreements')
         .select('*')
-        .eq('profile_id', profile.id)
+        .eq('profile_id', targetProfileId)
         .order('created_at', { ascending: false }),
       supabase
         .from('invoices')
         .select('*')
-        .eq('profile_id', profile.id)
+        .eq('profile_id', targetProfileId)
         .order('created_at', { ascending: false }),
     ]);
 
@@ -39,6 +55,55 @@ export function ServiceAgreements() {
     }
 
     setLoading(false);
+  };
+
+  const handleCreateAgreement = async () => {
+    if (!targetProfileId || !newAgreement.agreement_type.trim()) return;
+
+    const { error } = await supabase.from('service_agreements').insert({
+      profile_id: targetProfileId,
+      agreement_type: newAgreement.agreement_type,
+      status: newAgreement.status,
+      start_date: newAgreement.start_date || null,
+      end_date: newAgreement.end_date || null,
+      total_amount: newAgreement.total_amount ? parseFloat(newAgreement.total_amount) : null,
+      notes: newAgreement.notes || null,
+    });
+
+    if (!error) {
+      setNewAgreement({
+        agreement_type: '',
+        status: 'pending',
+        start_date: '',
+        end_date: '',
+        total_amount: '',
+        notes: '',
+      });
+      setShowNewAgreement(false);
+      loadData();
+    }
+  };
+
+  const handleUpdateAgreement = async (id: string, updates: Partial<ServiceAgreement>) => {
+    const { error } = await supabase
+      .from('service_agreements')
+      .update(updates)
+      .eq('id', id);
+
+    if (!error) {
+      setEditingAgreement(null);
+      loadData();
+    }
+  };
+
+  const handleDeleteAgreement = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this agreement?')) return;
+
+    const { error } = await supabase.from('service_agreements').delete().eq('id', id);
+
+    if (!error) {
+      loadData();
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -70,7 +135,115 @@ export function ServiceAgreements() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Service Agreements & Invoices</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Service Agreements & Invoices</h1>
+        {isAdminView && (
+          <button
+            onClick={() => setShowNewAgreement(!showNewAgreement)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            New Agreement
+          </button>
+        )}
+      </div>
+
+      {showNewAgreement && isAdminView && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-4">Create New Agreement</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Agreement Type</label>
+              <input
+                type="text"
+                value={newAgreement.agreement_type}
+                onChange={(e) => setNewAgreement({ ...newAgreement, agreement_type: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="e.g., Soil Consultation"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={newAgreement.status}
+                  onChange={(e) => setNewAgreement({ ...newAgreement, status: e.target.value as any })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Total Amount</label>
+                <input
+                  type="number"
+                  value={newAgreement.total_amount}
+                  onChange={(e) => setNewAgreement({ ...newAgreement, total_amount: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <input
+                  type="date"
+                  value={newAgreement.start_date}
+                  onChange={(e) => setNewAgreement({ ...newAgreement, start_date: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <input
+                  type="date"
+                  value={newAgreement.end_date}
+                  onChange={(e) => setNewAgreement({ ...newAgreement, end_date: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+              <textarea
+                value={newAgreement.notes}
+                onChange={(e) => setNewAgreement({ ...newAgreement, notes: e.target.value })}
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowNewAgreement(false);
+                  setNewAgreement({
+                    agreement_type: '',
+                    status: 'pending',
+                    start_date: '',
+                    end_date: '',
+                    total_amount: '',
+                    notes: '',
+                  });
+                }}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateAgreement}
+                disabled={!newAgreement.agreement_type.trim()}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Agreement
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mb-12">
         <h2 className="text-2xl font-semibold text-gray-900 mb-4">Service Agreements</h2>
@@ -89,13 +262,26 @@ export function ServiceAgreements() {
                       <h3 className="text-xl font-semibold text-gray-900">
                         {agreement.agreement_type}
                       </h3>
-                      <span
-                        className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusColor(
-                          agreement.status
-                        )}`}
-                      >
-                        {agreement.status}
-                      </span>
+                      {isAdminView && editingAgreement === agreement.id ? (
+                        <select
+                          value={agreement.status}
+                          onChange={(e) => handleUpdateAgreement(agreement.id, { status: e.target.value as any })}
+                          className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="active">Active</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      ) : (
+                        <span
+                          className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusColor(
+                            agreement.status
+                          )}`}
+                        >
+                          {agreement.status}
+                        </span>
+                      )}
                     </div>
                     {agreement.notes && (
                       <p className="text-gray-600 mb-3">{agreement.notes}</p>
@@ -121,6 +307,22 @@ export function ServiceAgreements() {
                       )}
                     </div>
                   </div>
+                  {isAdminView && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingAgreement(editingAgreement === agreement.id ? null : agreement.id)}
+                        className="text-gray-400 hover:text-blue-600"
+                      >
+                        <Edit className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAgreement(agreement.id)}
+                        className="text-gray-400 hover:text-red-600"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))

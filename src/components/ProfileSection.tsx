@@ -19,6 +19,22 @@ export function ProfileSection({ profileId, isAdminView }: ProfileSectionProps =
   const [notificationsEnabled, setNotificationsEnabled] = useState(
     profile?.notifications_enabled ?? true
   );
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState({
+    full_name: profile?.full_name || '',
+    phone: profile?.phone || '',
+    role: profile?.role || '',
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setEditValues({
+        full_name: profile.full_name || '',
+        phone: profile.phone || '',
+        role: profile.role || '',
+      });
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (isAdminView && profileId) {
@@ -139,6 +155,47 @@ export function ProfileSection({ profileId, isAdminView }: ProfileSectionProps =
     }
   };
 
+  const handleProfileUpdate = async (field: string, value: string) => {
+    if (!profile) return;
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const updateData: any = { [field]: value };
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', profile.id);
+
+      if (updateError) throw updateError;
+
+      setProfile({ ...profile, ...updateData });
+      setSuccess(`${field === 'full_name' ? 'Name' : field === 'phone' ? 'Phone' : 'Role'} updated successfully`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600">Profile not found</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Profile Settings</h1>
@@ -170,13 +227,49 @@ export function ProfileSection({ profileId, isAdminView }: ProfileSectionProps =
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-              <input
-                type="text"
-                value={profile?.full_name || ''}
-                disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-              />
-              <p className="text-xs text-gray-500 mt-1">Contact support to change your name</p>
+              {isAdminView && editingField === 'full_name' ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editValues.full_name}
+                    onChange={(e) => setEditValues({ ...editValues, full_name: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={() => {
+                      handleProfileUpdate('full_name', editValues.full_name);
+                      setEditingField(null);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingField(null);
+                      setEditValues({ ...editValues, full_name: profile?.full_name || '' });
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={profile?.full_name || ''}
+                    disabled={!isAdminView}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${
+                      isAdminView ? 'bg-white cursor-pointer hover:border-green-500' : 'bg-gray-50 text-gray-600'
+                    }`}
+                    onClick={() => isAdminView && setEditingField('full_name')}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {isAdminView ? 'Click to edit' : 'Contact support to change your name'}
+                  </p>
+                </>
+              )}
             </div>
 
             <div>
@@ -192,24 +285,100 @@ export function ProfileSection({ profileId, isAdminView }: ProfileSectionProps =
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-              <input
-                type="text"
-                value={profile?.role || ''}
-                disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 capitalize"
-              />
-              <p className="text-xs text-gray-500 mt-1">Role is set during registration</p>
+              {isAdminView && editingField === 'role' ? (
+                <div className="flex gap-2">
+                  <select
+                    value={editValues.role}
+                    onChange={(e) => setEditValues({ ...editValues, role: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="gardener">Gardener</option>
+                    <option value="farmer">Farmer</option>
+                    <option value="rancher">Rancher</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      handleProfileUpdate('role', editValues.role);
+                      setEditingField(null);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingField(null);
+                      setEditValues({ ...editValues, role: profile?.role || '' });
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={profile?.role || ''}
+                    disabled={!isAdminView}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg capitalize ${
+                      isAdminView ? 'bg-white cursor-pointer hover:border-green-500' : 'bg-gray-50 text-gray-600'
+                    }`}
+                    onClick={() => isAdminView && setEditingField('role')}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {isAdminView ? 'Click to edit' : 'Role is set during registration'}
+                  </p>
+                </>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-              <input
-                type="tel"
-                value={profile?.phone || ''}
-                disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-              />
-              <p className="text-xs text-gray-500 mt-1">Contact support to update phone</p>
+              {isAdminView && editingField === 'phone' ? (
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    value={editValues.phone}
+                    onChange={(e) => setEditValues({ ...editValues, phone: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={() => {
+                      handleProfileUpdate('phone', editValues.phone);
+                      setEditingField(null);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingField(null);
+                      setEditValues({ ...editValues, phone: profile?.phone || '' });
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="tel"
+                    value={profile?.phone || ''}
+                    disabled={!isAdminView}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${
+                      isAdminView ? 'bg-white cursor-pointer hover:border-green-500' : 'bg-gray-50 text-gray-600'
+                    }`}
+                    onClick={() => isAdminView && setEditingField('phone')}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {isAdminView ? 'Click to edit' : 'Contact support to update phone'}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -264,16 +433,17 @@ export function ProfileSection({ profileId, isAdminView }: ProfileSectionProps =
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Lock className="w-6 h-6 text-purple-600" />
+        {!isAdminView && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Lock className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Change Password</h2>
+                <p className="text-sm text-gray-600">Update your account password</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Change Password</h2>
-              <p className="text-sm text-gray-600">Update your account password</p>
-            </div>
-          </div>
 
           <div className="space-y-4 max-w-md">
             <div>
@@ -332,6 +502,7 @@ export function ProfileSection({ profileId, isAdminView }: ProfileSectionProps =
             </button>
           </div>
         </div>
+        )}
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center gap-3 mb-6">

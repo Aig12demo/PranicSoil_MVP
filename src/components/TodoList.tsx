@@ -2,10 +2,16 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { SharedTodo } from '../types/database';
-import { Plus, CheckCircle, Circle, Clock, Loader2 } from 'lucide-react';
+import { Plus, CheckCircle, Circle, Clock, Loader2, Trash2 } from 'lucide-react';
 
-export function TodoList() {
+interface TodoListProps {
+  profileId?: string;
+  isAdminView?: boolean;
+}
+
+export function TodoList({ profileId, isAdminView }: TodoListProps = {}) {
   const { profile } = useAuth();
+  const targetProfileId = profileId || profile?.id;
   const [todos, setTodos] = useState<SharedTodo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewTodo, setShowNewTodo] = useState(false);
@@ -18,15 +24,15 @@ export function TodoList() {
 
   useEffect(() => {
     loadTodos();
-  }, [profile]);
+  }, [targetProfileId]);
 
   const loadTodos = async () => {
-    if (!profile) return;
+    if (!targetProfileId) return;
 
     const { data, error } = await supabase
       .from('shared_todos')
       .select('*')
-      .eq('profile_id', profile.id)
+      .eq('profile_id', targetProfileId)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -36,11 +42,11 @@ export function TodoList() {
   };
 
   const createTodo = async () => {
-    if (!profile || !newTodo.title.trim()) return;
+    if (!targetProfileId || !newTodo.title.trim()) return;
 
     const { error } = await supabase.from('shared_todos').insert({
-      profile_id: profile.id,
-      created_by: profile.id,
+      profile_id: targetProfileId,
+      created_by: targetProfileId,
       title: newTodo.title,
       description: newTodo.description,
       priority: newTodo.priority,
@@ -51,6 +57,16 @@ export function TodoList() {
     if (!error) {
       setNewTodo({ title: '', description: '', priority: 'medium', due_date: '' });
       setShowNewTodo(false);
+      loadTodos();
+    }
+  };
+
+  const deleteTodo = async (todoId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+
+    const { error } = await supabase.from('shared_todos').delete().eq('id', todoId);
+
+    if (!error) {
       loadTodos();
     }
   };
@@ -94,13 +110,15 @@ export function TodoList() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">To-Do List</h1>
-        <button
-          onClick={() => setShowNewTodo(!showNewTodo)}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          New Task
-        </button>
+        {(isAdminView || !isAdminView) && (
+          <button
+            onClick={() => setShowNewTodo(!showNewTodo)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            New Task
+          </button>
+        )}
       </div>
 
       {showNewTodo && (
@@ -247,6 +265,14 @@ export function TodoList() {
                     </p>
                   )}
                 </div>
+                {isAdminView && (
+                  <button
+                    onClick={() => deleteTodo(todo.id)}
+                    className="mt-1 text-gray-400 hover:text-red-600"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </div>
           ))

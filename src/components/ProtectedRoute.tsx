@@ -1,10 +1,11 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, Mail } from 'lucide-react';
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const [retryCount, setRetryCount] = useState(0);
 
   if (loading) {
     return (
@@ -40,11 +41,47 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
+  useEffect(() => {
+    if (user && !profile && retryCount < 5) {
+      const timer = setTimeout(() => {
+        refreshProfile();
+        setRetryCount(c => c + 1);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, profile, retryCount, refreshProfile]);
+
   if (user && !profile) {
+    if (retryCount >= 5) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Profile Setup Required</h2>
+            <p className="text-gray-600 mb-4">
+              Your profile is being set up. This may take a moment.
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              If this persists, your profile may need to be created manually.
+            </p>
+            <button
+              onClick={() => {
+                refreshProfile();
+                setRetryCount(0);
+              }}
+              className="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
         <Loader2 className="w-12 h-12 animate-spin text-green-600 mb-4" />
         <p className="text-gray-600">Setting up your profile...</p>
+        <p className="text-sm text-gray-500 mt-2">Attempt {retryCount + 1} of 5</p>
       </div>
     );
   }

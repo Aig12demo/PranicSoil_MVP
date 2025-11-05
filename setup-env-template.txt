@@ -1,0 +1,7 @@
+# Copy this content to a new file named ".env" in the PranicSoil_MVP directory
+
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+
+# Get these values from: https://app.supabase.com/project/_/settings/api
+

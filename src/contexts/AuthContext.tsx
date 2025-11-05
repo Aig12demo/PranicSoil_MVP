@@ -24,11 +24,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('Fetching profile for userId:', userId);
 
     try {
-      const { data, error } = await supabase
+      // Try by id first (most reliable)
+      let { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .or(`user_id.eq.${userId},id.eq.${userId}`)
+        .eq('id', userId)
         .maybeSingle();
+
+      // If not found, try by user_id
+      if (!data && !error) {
+        const { data: data2, error: error2 } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        data = data2;
+        error = error2;
+      }
 
       console.log('Profile fetch result:', { data, error });
 
@@ -40,11 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           hint: error.hint,
           code: error.code
         });
+        
+        // If it's a table not found error, profile might not exist yet
+        if (error.code === 'PGRST116' || error.message.includes('table') || error.message.includes('schema')) {
+          console.warn('Profiles table might not exist yet');
+        }
         return null;
       }
 
       if (!data) {
         console.warn('No profile found for user:', userId);
+        console.warn('This might be normal if profile is being created by trigger');
       }
 
       return data;

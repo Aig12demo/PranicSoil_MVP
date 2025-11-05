@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { MessageSquare, Sprout, Wheat, Mountain } from 'lucide-react';
+import { Mic, Sprout, Wheat, Mountain } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { VoiceAgent } from '../components/VoiceAgent';
 
 export function WelcomePage() {
   const navigate = useNavigate();
-  const [showChat, setShowChat] = useState(false);
   const [showVoiceAgent, setShowVoiceAgent] = useState(false);
 
   const roles = [
@@ -58,31 +57,16 @@ export function WelcomePage() {
             Expert agricultural consultation powered by AI. Get personalized advice for your
             gardens, farms, or ranches to build soil health from the ground up.
           </p>
-          <div className="flex gap-4">
-            <button
-              onClick={() => setShowChat(!showChat)}
-              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-green-700 border-2 border-green-600 rounded-lg hover:bg-green-50 font-medium transition-colors shadow-lg"
-            >
-              <MessageSquare className="w-5 h-5" />
-              {showChat ? 'Hide Chat' : 'Chat with Us'}
-            </button>
+          <div className="flex justify-center">
             <button
               onClick={() => setShowVoiceAgent(true)}
-              className="inline-flex items-center gap-2 px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors shadow-lg"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors shadow-lg text-lg"
             >
-              <MessageSquare className="w-5 h-5" />
-              Try Voice Agent
+              <Mic className="w-6 h-6" />
+              Voice Assistant
             </button>
           </div>
         </section>
-
-        {showChat && (
-          <section className="mb-16 max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-6">
-            <div className="border-2 border-gray-200 rounded-lg p-4 h-96 flex items-center justify-center text-gray-500">
-              <p>Chat interface coming soon - Ask about our services, pricing, and how we can help!</p>
-            </div>
-          </section>
-        )}
 
         <section className="mb-16">
           <h2 className="text-3xl font-bold text-center text-gray-900 mb-4">
