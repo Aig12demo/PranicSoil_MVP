@@ -8,6 +8,8 @@ import { ConfirmEmailPage } from './pages/ConfirmEmailPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { DiagnosticPage } from './pages/DiagnosticPage';
+import { SubscriptionPage } from './pages/SubscriptionPage';
+import { AdminCouponsPage } from './pages/AdminCouponsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
@@ -22,6 +24,22 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/diagnostics" element={<DiagnosticPage />} />
+          <Route
+            path="/subscribe"
+            element={
+              <ProtectedRoute>
+                <SubscriptionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/coupons"
+            element={
+              <ProtectedRoute>
+                <AdminCouponsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={

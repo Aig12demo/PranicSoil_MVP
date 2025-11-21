@@ -134,9 +134,10 @@ const [showVoiceAgent, setShowVoiceAgent] = useState(false);
 
 1. **User arrives at welcome page**
 2. **Sees hero section with:**
-   - Title: "Cultivate Healthy Soil, Grow Thriving Microbiomes"
+   - Title: "Welcome to Pranic Soil
+AI-Powered Agricultural Consultation Platform"
    - Description about AI consultation
-   - **ONE centered button:** 🎤 "Voice Assistant"
+   - **ONE centered button:** 🎤 "Talk to Rajani"
 3. **User clicks "Voice Assistant"**
 4. **VoiceAgent modal opens** (ElevenLabs)
 5. **User has voice conversation**

@@ -70,12 +70,30 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
   }, []);
 
   const playAudioChunk = useCallback(async (audioData: ArrayBuffer) => {
+    // 🔧 Prevent duplicate playback
+    if (isPlayingRef.current) {
+      console.warn('⚠️ Already playing audio, skipping duplicate chunk');
+      return;
+    }
+
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
 
     try {
-      const audioBuffer = await audioContextRef.current.decodeAudioData(audioData);
+      // 🔧 Handle PCM 16-bit audio from ElevenLabs (most common format)
+      const sampleRate = 24000; // ElevenLabs typically uses 24kHz
+      const pcm16 = new Int16Array(audioData);
+      
+      // Create audio buffer
+      const audioBuffer = audioContextRef.current.createBuffer(1, pcm16.length, sampleRate);
+      const channelData = audioBuffer.getChannelData(0);
+      
+      // Convert Int16 to Float32 for Web Audio API
+      for (let i = 0; i < pcm16.length; i++) {
+        channelData[i] = pcm16[i] / 32768.0;
+      }
+      
       const source = audioContextRef.current.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioContextRef.current.destination);
@@ -98,10 +116,40 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
       volumeIntervalRef.current = window.setInterval(simulateVolume, 100);
 
       source.start(0);
+      console.log('🔊 Playing audio chunk (single playback path)');
     } catch (err) {
-      console.error('Error playing audio:', err);
-      isPlayingRef.current = false;
-      playNextChunk();
+      console.error('Error playing PCM audio, trying alternative decode:', err);
+      // Try alternative: decode as regular audio format
+      try {
+        const audioBuffer = await audioContextRef.current.decodeAudioData(audioData);
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContextRef.current.destination);
+
+        source.onended = () => {
+          isPlayingRef.current = false;
+          setStatus('listening');
+          setVolume(0);
+          playNextChunk();
+        };
+
+        setStatus('speaking');
+        isPlayingRef.current = true;
+
+        const simulateVolume = () => {
+          if (isPlayingRef.current) {
+            setVolume(Math.random() * 0.5 + 0.3);
+          }
+        };
+        volumeIntervalRef.current = window.setInterval(simulateVolume, 100);
+
+        source.start(0);
+        console.log('🔊 Playing audio chunk (alternative decode)');
+      } catch (err2) {
+        console.error('Error with alternative audio decode:', err2);
+        isPlayingRef.current = false;
+        playNextChunk();
+      }
     }
   }, []);
 
@@ -342,19 +390,30 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
             // Handle conversation initiation response
             if (message.type === 'conversation_initiation_metadata') {
               console.log('✅ Conversation initialized successfully');
+              console.log('🔍 Agent ID being used (check this matches your ElevenLabs config):', message.conversation_id || 'N/A');
             }
 
-            // Handle audio response - check all possible audio fields
-            if (message.type === 'audio' || message.audio_event?.audio_base_64) {
-              console.log(`🔊 Received audio message [${connectionId}] - Context: ${context_type}`);
-              console.log('🔊 Audio event:', message.audio_event);
+            // 🔧 FIX: Handle ALL audio through the queue system to prevent duplication
+            let audioData: ArrayBuffer | null = null;
+            
+            // Check agent_response first (most common format)
+            if (message.type === 'agent_response' && message.agent_response_event?.audio_base_64) {
+              console.log('💬 Agent is responding with audio');
+              const audioBase64 = message.agent_response_event.audio_base_64;
               
-              let audioBase64 = null;
-              if (message.audio_event?.audio_base_64) {
-                audioBase64 = message.audio_event.audio_base_64;
-              } else if (message.audio_base_64) {
-                audioBase64 = message.audio_base_64;
+              // Decode base64 to binary
+              const binaryString = atob(audioBase64);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
               }
+              audioData = bytes.buffer;
+              setStatus('speaking');
+            }
+            // Check audio event (alternative format)
+            else if (message.type === 'audio' || message.audio_event?.audio_base_64) {
+              console.log(`🔊 Received audio message [${connectionId}] - Context: ${context_type}`);
+              const audioBase64 = message.audio_event?.audio_base_64 || message.audio_base_64;
               
               if (audioBase64) {
                 console.log('🔊 Decoding audio, length:', audioBase64.length);
@@ -365,66 +424,27 @@ export function useElevenLabsAgent(): UseElevenLabsAgentReturn {
                 for (let i = 0; i < binaryString.length; i++) {
                   bytes[i] = binaryString.charCodeAt(i);
                 }
-                
-                // Convert to Int16Array (PCM format)
-                const pcm16 = new Int16Array(bytes.buffer);
-                
-                // Create audio context if needed
-                if (!audioContextRef.current) {
-                  audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-                }
-                
-                const audioContext = audioContextRef.current;
-                const sampleRate = 24000; // ElevenLabs typically uses 24kHz
-                
-                // Create audio buffer
-                const audioBuffer = audioContext.createBuffer(1, pcm16.length, sampleRate);
-                const channelData = audioBuffer.getChannelData(0);
-                
-                // Convert Int16 to Float32 for Web Audio API
-                for (let i = 0; i < pcm16.length; i++) {
-                  channelData[i] = pcm16[i] / 32768.0;
-                }
-                
-                // Create and play source
-                const source = audioContext.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(audioContext.destination);
-                
-                source.onended = () => {
-                  console.log('🔊 Audio chunk finished');
-                  setStatus('listening');
-                };
-                
-                source.start(0);
-                console.log('🔊 Playing audio chunk');
+                audioData = bytes.buffer;
+              }
+            }
+            
+            // 🔧 Add audio to queue if found (only one path, no duplication)
+            if (audioData) {
+              console.log('🔊 Adding audio chunk to queue (single playback path)');
+              audioQueueRef.current.push(audioData);
+              playNextChunk();
+              if (status !== 'speaking') {
                 setStatus('speaking');
               }
             }
 
-            // Handle text response from agent
+            // Handle text response from agent (no audio, just text)
             if (message.type === 'agent_chat_response_part') {
               const textContent = message.text_response_part?.text || '';
               console.log('💬 Agent text response:', textContent);
               if (!isPlayingRef.current && status !== 'speaking') {
                 setStatus('speaking');
               }
-            }
-
-            // Handle agent response event (includes audio)
-            if (message.type === 'agent_response') {
-              console.log('💬 Agent is responding');
-              console.log('💬 Response details:', message.agent_response_event);
-              
-              // Check if audio is included in the response
-              if (message.agent_response_event?.audio_base_64) {
-                console.log('🔊 Audio included in agent_response');
-                const audioData = Uint8Array.from(atob(message.agent_response_event.audio_base_64), c => c.charCodeAt(0));
-                audioQueueRef.current.push(audioData.buffer);
-                playNextChunk();
-              }
-              
-              setStatus('speaking');
             }
             
             // Handle user transcript (confirmation your speech was heard)

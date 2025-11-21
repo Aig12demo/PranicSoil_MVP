@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, Mic, AlertCircle, Info } from 'lucide-react';
+import { X, Mic, AlertCircle, Info, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { DynamicAvatar } from './DynamicAvatar';
 import { useElevenLabsAgent } from '../hooks/useElevenLabsAgent';
 import { getBrowserInstructions } from '../utils/mediaPermissions';
+import { supabase } from '../lib/supabase';
 
 interface VoiceAgentProps {
   onClose?: () => void;
@@ -17,10 +19,13 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
   console.log(`   userId: ${userId}`);
   console.log(`   onClose: ${typeof onClose}`);
   
+  const navigate = useNavigate();
   const [isStarted, setIsStarted] = useState(false);
   const [showPermissionRequest, setShowPermissionRequest] = useState(true);
   const [showPermissionHelp, setShowPermissionHelp] = useState(false);
   const [wasConnected, setWasConnected] = useState(false);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(contextType === 'authenticated');
+  const [needsSubscription, setNeedsSubscription] = useState(false);
   const { status, volume, isConnected, connect, disconnect, error: agentError } = useElevenLabsAgent();
 
   // Track if we ever successfully connected
@@ -29,6 +34,39 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
       setWasConnected(true);
     }
   }, [isConnected]);
+
+  // Check subscription status for authenticated users
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (contextType !== 'authenticated' || !userId) {
+        setIsCheckingSubscription(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.rpc('get_subscription_status', { user_id: userId });
+
+        if (error) {
+          console.error('Error checking subscription:', error);
+          setNeedsSubscription(true);
+        } else if (!data || data.length === 0 || !data[0].has_subscription) {
+          setNeedsSubscription(true);
+        } else {
+          const subStatus = data[0].status;
+          if (!['trialing', 'active'].includes(subStatus)) {
+            setNeedsSubscription(true);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking subscription:', err);
+        setNeedsSubscription(true);
+      } finally {
+        setIsCheckingSubscription(false);
+      }
+    };
+
+    checkSubscription();
+  }, [contextType, userId]);
 
   // Log helpful reminder on mount
   useEffect(() => {
@@ -133,6 +171,61 @@ export function VoiceAgent({ onClose, contextType = 'public', userId = null }: V
 
   const errorDetails = getErrorDetails(agentError);
   const browserInfo = getBrowserInstructions();
+
+  // Show subscription required screen
+  if (needsSubscription) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative">
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          )}
+
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <Lock className="w-8 h-8 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Subscription Required
+            </h2>
+            <p className="text-gray-600 mb-6">
+              The Voice Assistant is a premium feature. Subscribe now to unlock unlimited access
+              with a 7-day free trial!
+            </p>
+            <button
+              onClick={() => navigate('/subscribe')}
+              className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-bold mb-3"
+            >
+              View Subscription Plans
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Maybe Later
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading screen while checking subscription
+  if (isCheckingSubscription) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+          <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking subscription status...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

@@ -4,10 +4,10 @@ import { supabase } from '../lib/supabase';
 import { Profile } from '../types/database';
 
 interface AdminCustomerListProps {
-  onViewCustomer: (customerId: string) => void;
+  onCustomerClick?: (customerId: string) => void;
 }
 
-export function AdminCustomerList({ onViewCustomer }: AdminCustomerListProps) {
+export function AdminCustomerList({ onCustomerClick }: AdminCustomerListProps) {
   const [customers, setCustomers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,7 +21,8 @@ export function AdminCustomerList({ onViewCustomer }: AdminCustomerListProps) {
         .from('profiles')
         .select('*')
         .neq('role', 'admin')
-        .order('created_at', { ascending: false });
+        .eq('status', 'active')  // Only show active customers
+        .order('created_at', { ascending: false});
 
       if (error) throw error;
       setCustomers(data || []);
@@ -89,7 +90,7 @@ export function AdminCustomerList({ onViewCustomer }: AdminCustomerListProps) {
                 <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <button
-                      onClick={() => onViewCustomer(customer.id)}
+                      onClick={() => onCustomerClick?.(customer.id)}
                       className="text-green-600 hover:text-green-700 font-medium hover:underline text-left"
                     >
                       {customer.full_name}
@@ -115,7 +116,7 @@ export function AdminCustomerList({ onViewCustomer }: AdminCustomerListProps) {
                   </td>
                   <td className="py-3 px-4 text-center">
                     <button
-                      onClick={() => onViewCustomer(customer.id)}
+                      onClick={() => onCustomerClick?.(customer.id)}
                       className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
                     >
                       <Eye className="w-4 h-4" />

@@ -1,0 +1,12 @@
+⚠️ IMPORTANT: Add this line to your .env file
+
+Open your .env file and add this line:
+
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51SPvKAKYt2mzdtj0u5K3n7nl3ih8jj79OtVnTOz7da2rCzwJwvvtckunLq4rj0GDrN4IZE5Hgr0GyW8FsX9uhiPd00L4XpeWZT
+
+Your complete .env should look like:
+
+VITE_SUPABASE_URL=https://zilrthstnuxncufdgiys.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppbHJ0aHN0bnV4bmN1ZmRnaXlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU4NzAwNDcsImV4cCI6MjA1MTQ0NjA0N30.B3rRFIQKUWQ5GKg3Q6VuQQeHFp-S8RnI6YjZ82VZhtY
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51SPvKAKYt2mzdtj0u5K3n7nl3ih8jj79OtVnTOz7da2rCzwJwvvtckunLq4rj0GDrN4IZE5Hgr0GyW8FsX9uhiPd00L4XpeWZT
+

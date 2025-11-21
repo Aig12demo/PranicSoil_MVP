@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Loader2, User, Lock, Bell, Camera } from 'lucide-react';
 import { Profile } from '../types/database';
+import { SubscriptionStatus } from './SubscriptionStatus';
 
 interface ProfileSectionProps {
   profileId?: string;
@@ -550,6 +551,9 @@ export function ProfileSection({ profileId, isAdminView }: ProfileSectionProps =
             </button>
           </div>
         </div>
+
+        {/* Subscription Status - Only for non-admin views */}
+        {!isAdminView && <SubscriptionStatus />}
       </div>
     </div>
   );

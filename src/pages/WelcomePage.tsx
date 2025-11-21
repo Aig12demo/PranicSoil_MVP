@@ -10,21 +10,21 @@ export function WelcomePage() {
   const roles = [
     {
       id: 'gardener',
-      title: 'Gardener',
+      title: 'I am a Gardener',
       icon: Sprout,
       description: 'Home gardeners, community gardens, and urban farming',
       color: 'from-green-400 to-emerald-600',
     },
     {
       id: 'farmer',
-      title: 'Farmer',
+      title: 'I am a Farmer',
       icon: Wheat,
       description: 'Commercial farming operations and crop production',
       color: 'from-amber-400 to-orange-600',
     },
     {
       id: 'rancher',
-      title: 'Rancher',
+      title: 'I am a Rancher',
       icon: Mountain,
       description: 'Livestock operations and grazing management',
       color: 'from-red-400 to-rose-600',
@@ -49,13 +49,13 @@ export function WelcomePage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <section className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">
-            Cultivate Healthy Soil, <br />
-            <span className="text-green-600">Grow Thriving Microbiomes</span>
+          <h1 className="text-5xl font-bold text-red-900 mb-6">
+          Welcome to Pranic Soil <br />
+            <span className="text-green-600">AI-Powered Agricultural Consultation Platform</span>
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Expert agricultural consultation powered by AI. Get personalized advice for your
-            gardens, farms, or ranches to build soil health from the ground up.
+            Get personalized advice
+       to build soil health from the ground up.
           </p>
           <div className="flex justify-center">
             <button
@@ -63,7 +63,7 @@ export function WelcomePage() {
               className="inline-flex items-center gap-2 px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors shadow-lg text-lg"
             >
               <Mic className="w-6 h-6" />
-              Voice Assistant
+              Talk to Rajani
             </button>
           </div>
         </section>

@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Home,
   User,
   FileText,
   CheckSquare,
   LogOut,
-  Upload,
-  Calendar,
   DollarSign,
-  Shield,
-  Mic
+  Mic,
+  Sprout,
+  X,
+  TestTube
 } from 'lucide-react';
 import { ProfileSection } from '../components/ProfileSection';
 import { TodoList } from '../components/TodoList';
@@ -20,49 +20,127 @@ import { ServiceAgreements } from '../components/ServiceAgreements';
 import { AdminCustomerList } from '../components/AdminCustomerList';
 import { AdminCustomerView } from '../components/AdminCustomerView';
 import { VoiceAgent } from '../components/VoiceAgent';
+import { DashboardOverview } from '../components/DashboardOverview';
+import { CropManagement } from '../components/CropManagement';
+import { SoilTestUpload } from '../components/SoilTestUpload';
+import { SoilTestReports } from '../components/SoilTestReports';
 
-type TabType = 'overview' | 'profile' | 'documents' | 'todos' | 'agreements' | 'admin';
+type TabType = 'overview' | 'profile' | 'documents' | 'todos' | 'agreements' | 'crops' | 'soil-tests' | 'admin';
 
 export function DashboardPage() {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [viewingCustomerId, setViewingCustomerId] = useState<string | null>(null);
   const [showVoiceAgent, setShowVoiceAgent] = useState(false);
+  const [soilTestsRefreshTrigger, setSoilTestsRefreshTrigger] = useState(0);
+
+  // If admin, check if viewing a specific customer
+  useEffect(() => {
+    const customerId = searchParams.get('customer');
+    if (customerId && profile?.role === 'admin') {
+      setViewingCustomerId(customerId);
+      setActiveTab('admin');
+    }
+  }, [searchParams, profile]);
+
+  // Set default tab based on role
+  useEffect(() => {
+    if (profile?.role === 'admin' && !viewingCustomerId) {
+      setActiveTab('admin'); // Admin sees customer list by default
+    }
+  }, [profile, viewingCustomerId]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
 
-  const tabs = [
-    { id: 'overview' as TabType, label: 'Overview', icon: Home },
-    { id: 'profile' as TabType, label: 'Profile', icon: User },
-    { id: 'documents' as TabType, label: 'Documents', icon: FileText },
-    { id: 'todos' as TabType, label: 'To-Do List', icon: CheckSquare },
-    { id: 'agreements' as TabType, label: 'Agreements', icon: DollarSign },
-    ...(profile?.role === 'admin' ? [{ id: 'admin' as TabType, label: 'Admin', icon: Shield }] : []),
-  ];
+  const handleCustomerClick = (customerId: string) => {
+    setViewingCustomerId(customerId);
+    navigate(`/dashboard?customer=${customerId}`);
+  };
+
+  const handleBackToCustomers = () => {
+    setViewingCustomerId(null);
+    navigate('/dashboard');
+    setActiveTab('admin');
+  };
+
+  // Define tabs based on user role
+  const getTabsForRole = () => {
+    const baseTabs = [
+      { id: 'overview' as TabType, label: 'Overview', icon: Home },
+      { id: 'crops' as TabType, label: 'Crops', icon: Sprout },
+      { id: 'soil-tests' as TabType, label: 'Soil Tests', icon: TestTube },
+      { id: 'todos' as TabType, label: 'To-Do List', icon: CheckSquare },
+      { id: 'documents' as TabType, label: 'Documents', icon: FileText },
+      { id: 'agreements' as TabType, label: 'Agreements', icon: DollarSign },
+      { id: 'profile' as TabType, label: 'Profile', icon: User },
+    ];
+
+    // Don't show "Admin" in sidebar - it's the default view
+    return baseTabs;
+  };
+
+  const tabs = getTabsForRole();
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <aside className="w-64 bg-white shadow-lg">
-        <div className="p-6">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white shadow-lg flex flex-col">
+        <div className="flex-1 p-6">
           <img src="/PRANIC SOIL Logo.png" alt="Pranic Soil" className="h-10 mb-8" />
 
+          {/* User Info with Voice Agent */}
           <div className="mb-8">
-            <p className="text-sm text-gray-600">Welcome back,</p>
-            <p className="font-semibold text-gray-900">{profile?.full_name || 'User'}</p>
-            <p className="text-xs text-green-600 capitalize mt-1">{profile?.role}</p>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-sm text-gray-600">Welcome back,</p>
+                <p className="font-semibold text-gray-900">{profile?.full_name || 'User'}</p>
+                <p className="text-xs text-green-600 capitalize mt-1">{profile?.role}</p>
+              </div>
+              {/* Voice Agent Button - Top Left */}
+              <button
+                onClick={() => setShowVoiceAgent(true)}
+                className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center hover:bg-green-700 transition-colors shadow-lg"
+                title="Voice Assistant"
+              >
+                <Mic className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
 
+          {/* Navigation */}
           <nav className="space-y-2">
+            {/* Show Customer List as first item for admin when not viewing a customer */}
+            {profile?.role === 'admin' && !viewingCustomerId && (
+              <button
+                onClick={() => setActiveTab('admin')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  activeTab === 'admin'
+                    ? 'bg-green-50 text-green-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <User className="w-5 h-5" />
+                Customers
+              </button>
+            )}
+
+            {/* Regular tabs */}
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if (viewingCustomerId) {
+                      // Stay on customer view but change tab
+                    }
+                  }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === tab.id
                       ? 'bg-green-50 text-green-700 font-medium'
@@ -77,7 +155,8 @@ export function DashboardPage() {
           </nav>
         </div>
 
-        <div className="absolute bottom-0 w-64 p-6 border-t border-gray-200">
+        {/* Sign Out at bottom */}
+        <div className="p-6 border-t border-gray-200">
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -88,105 +167,70 @@ export function DashboardPage() {
         </div>
       </aside>
 
+      {/* Main Content */}
       <main className="flex-1 p-8">
         <div className="max-w-6xl mx-auto">
-          {activeTab === 'overview' && (
+          {/* Back to Customers Button for Admin */}
+          {profile?.role === 'admin' && viewingCustomerId && (
+            <button
+              onClick={handleBackToCustomers}
+              className="mb-6 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Back to Customers
+            </button>
+          )}
+
+          {/* Admin View - Customer List or Customer Details */}
+          {profile?.role === 'admin' && activeTab === 'admin' && !viewingCustomerId && (
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard Overview</h1>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckSquare className="w-6 h-6 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-gray-600 text-sm">Active Tasks</p>
-                      <p className="text-2xl font-bold text-gray-900">0</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-gray-600 text-sm">Documents</p>
-                      <p className="text-2xl font-bold text-gray-900">0</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Calendar className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-gray-600 text-sm">Upcoming</p>
-                      <p className="text-2xl font-bold text-gray-900">0</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => setShowVoiceAgent(true)}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    >
-                      <Mic className="w-5 h-5" />
-                      Voice Consultation
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('documents')}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <Upload className="w-5 h-5" />
-                      Upload Documents
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
-                  <p className="text-gray-600">No recent activity to display.</p>
-                </div>
-              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-8">Customer Management</h1>
+              <AdminCustomerList onCustomerClick={handleCustomerClick} />
             </div>
           )}
 
-          {activeTab === 'profile' && <ProfileSection />}
-          {activeTab === 'documents' && <DocumentsList />}
-          {activeTab === 'todos' && <TodoList />}
-          {activeTab === 'agreements' && <ServiceAgreements />}
-          {activeTab === 'admin' && profile?.role === 'admin' && (
-            viewingCustomerId ? (
-              <AdminCustomerView
-                customerId={viewingCustomerId}
-                onBack={() => setViewingCustomerId(null)}
-              />
-            ) : (
-              <AdminCustomerList
-                onViewCustomer={(customerId) => setViewingCustomerId(customerId)}
-              />
-            )
+          {/* Admin viewing specific customer */}
+          {profile?.role === 'admin' && viewingCustomerId && (
+            <AdminCustomerView customerId={viewingCustomerId} activeTab={activeTab} />
+          )}
+
+          {/* Regular User Views */}
+          {(!viewingCustomerId || profile?.role !== 'admin') && (
+            <>
+              {activeTab === 'overview' && profile?.role !== 'admin' && <DashboardOverview />}
+              {activeTab === 'crops' && <CropManagement profileId={viewingCustomerId || undefined} isAdminView={!!viewingCustomerId} />}
+              {activeTab === 'soil-tests' && (
+                <div className="space-y-6">
+                  <SoilTestUpload 
+                    profileId={viewingCustomerId || undefined} 
+                    isAdminView={!!viewingCustomerId}
+                    onRefreshReports={() => setSoilTestsRefreshTrigger(Date.now())}
+                  />
+                  <SoilTestReports 
+                    profileId={viewingCustomerId || undefined} 
+                    isAdminView={!!viewingCustomerId}
+                    refreshTrigger={soilTestsRefreshTrigger}
+                  />
+                </div>
+              )}
+              {activeTab === 'profile' && <ProfileSection profileId={viewingCustomerId || undefined} isAdminView={!!viewingCustomerId} />}
+              {activeTab === 'documents' && <DocumentsList profileId={viewingCustomerId || undefined} isAdminView={!!viewingCustomerId} />}
+              {activeTab === 'todos' && <TodoList profileId={viewingCustomerId || undefined} isAdminView={!!viewingCustomerId} />}
+              {activeTab === 'agreements' && <ServiceAgreements profileId={viewingCustomerId || undefined} />}
+            </>
           )}
         </div>
       </main>
 
+      {/* Voice Agent Modal */}
       {showVoiceAgent && (
         <VoiceAgent
           onClose={() => setShowVoiceAgent(false)}
           contextType="authenticated"
-          userId={profile?.user_id || null}
+          userId={profile?.id || null}
         />
       )}
     </div>
   );
 }
+

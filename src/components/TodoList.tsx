@@ -42,8 +42,13 @@ export function TodoList({ profileId, isAdminView }: TodoListProps = {}) {
   };
 
   const createTodo = async () => {
-    if (!targetProfileId || !newTodo.title.trim()) return;
+    console.log('createTodo called');
+    if (!targetProfileId || !newTodo.title.trim()) {
+      console.log('Validation failed', { targetProfileId, title: newTodo.title });
+      return;
+    }
 
+    console.log('Creating todo...');
     const { error } = await supabase.from('shared_todos').insert({
       profile_id: targetProfileId,
       created_by: targetProfileId,
@@ -54,7 +59,10 @@ export function TodoList({ profileId, isAdminView }: TodoListProps = {}) {
       status: 'pending',
     });
 
-    if (!error) {
+    if (error) {
+      console.error('Error creating todo:', error);
+    } else {
+      console.log('Todo created successfully');
       setNewTodo({ title: '', description: '', priority: 'medium', due_date: '' });
       setShowNewTodo(false);
       loadTodos();
@@ -64,14 +72,20 @@ export function TodoList({ profileId, isAdminView }: TodoListProps = {}) {
   const deleteTodo = async (todoId: string) => {
     if (!confirm('Are you sure you want to delete this task?')) return;
 
+    console.log('Deleting todo:', todoId);
     const { error } = await supabase.from('shared_todos').delete().eq('id', todoId);
 
-    if (!error) {
+    if (error) {
+      console.error('Error deleting todo:', error);
+      alert('Failed to delete task. Please try again.');
+    } else {
+      console.log('Todo deleted successfully');
       loadTodos();
     }
   };
 
   const updateTodoStatus = async (todoId: string, newStatus: SharedTodo['status']) => {
+    console.log('Updating todo status:', { todoId, newStatus });
     const { error } = await supabase
       .from('shared_todos')
       .update({
@@ -80,7 +94,11 @@ export function TodoList({ profileId, isAdminView }: TodoListProps = {}) {
       })
       .eq('id', todoId);
 
-    if (!error) {
+    if (error) {
+      console.error('Error updating todo status:', error);
+      alert('Failed to update task status. Please try again.');
+    } else {
+      console.log('Todo status updated successfully');
       loadTodos();
     }
   };
@@ -177,17 +195,26 @@ export function TodoList({ profileId, isAdminView }: TodoListProps = {}) {
                 />
               </div>
             </div>
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-3 justify-end pt-4 mt-2 border-t border-gray-200">
               <button
-                onClick={() => setShowNewTodo(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                type="button"
+                onClick={() => {
+                  console.log('Cancel clicked');
+                  setShowNewTodo(false);
+                  setNewTodo({ title: '', description: '', priority: 'medium', due_date: '' });
+                }}
+                className="px-6 py-2 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
-                onClick={createTodo}
+                type="button"
+                onClick={() => {
+                  console.log('Create Task button clicked!');
+                  createTodo();
+                }}
                 disabled={!newTodo.title.trim()}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
               >
                 Create Task
               </button>

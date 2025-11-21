@@ -133,3 +133,54 @@ export interface VoiceConversation {
   metadata?: Record<string, any>;
   created_at: string;
 }
+
+export interface SoilTestReport {
+  id: string;
+  profile_id: string;
+  farm_id?: string | null;
+  client_name?: string | null;
+  client_location?: string | null;
+  grower_name?: string | null;
+  grower_location?: string | null;
+  report_date?: string | null;
+  date_received?: string | null;
+  field_id?: string | null;
+  sample_id?: string | null;
+  ph_soil?: number | null;
+  ph_buffer?: number | null;
+  phosphorus_op?: number | null;
+  phosphorus_m3?: number | null;
+  potassium?: number | null;
+  calcium?: number | null;
+  magnesium?: number | null;
+  sulfur?: number | null;
+  boron?: number | null;
+  copper?: number | null;
+  iron?: number | null;
+  manganese?: number | null;
+  zinc?: number | null;
+  sodium?: number | null;
+  soluble_salts?: number | null;
+  organic_matter?: number | null;
+  estimated_n_release?: number | null;
+  nitrate_nitrogen?: number | null;
+  cec?: number | null;
+  sat_k_percent?: number | null;
+  sat_k_meq?: number | null;
+  sat_ca_percent?: number | null;
+  sat_ca_meq?: number | null;
+  sat_mg_percent?: number | null;
+  sat_mg_meq?: number | null;
+  sat_h_percent?: number | null;
+  sat_h_meq?: number | null;
+  sat_na_percent?: number | null;
+  sat_na_meq?: number | null;
+  k_mg_ratio?: number | null;
+  ca_mg_ratio?: number | null;
+  report_image_url?: string | null;
+  extraction_status?: 'pending' | 'processing' | 'completed' | 'failed';
+  extraction_raw_json?: Record<string, any> | null;
+  extraction_notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

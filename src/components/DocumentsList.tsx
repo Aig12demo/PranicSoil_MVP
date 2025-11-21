@@ -42,9 +42,14 @@ export function DocumentsList({ profileId, isAdminView }: DocumentsListProps = {
   };
 
   const handleUpload = async () => {
-    if (!targetProfileId || !uploadData.file_name.trim() || !uploadData.file_url.trim()) return;
+    console.log('Upload button clicked!');
+    if (!targetProfileId || !uploadData.file_name.trim() || !uploadData.file_url.trim()) {
+      console.log('Validation failed', { targetProfileId, file_name: uploadData.file_name, file_url: uploadData.file_url });
+      return;
+    }
 
     setUploading(true);
+    console.log('Uploading document...', uploadData);
 
     try {
       const { error } = await supabase.from('documents').insert({
@@ -54,8 +59,13 @@ export function DocumentsList({ profileId, isAdminView }: DocumentsListProps = {
         description: uploadData.description,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error uploading document:', error);
+        alert('Failed to upload document. Please check console for details.');
+        throw error;
+      }
 
+      console.log('Document uploaded successfully!');
       setUploadData({ file_name: '', file_url: '', description: '' });
       setShowUpload(false);
       loadDocuments();
@@ -69,9 +79,14 @@ export function DocumentsList({ profileId, isAdminView }: DocumentsListProps = {
   const handleDelete = async (docId: string) => {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
+    console.log('Deleting document:', docId);
     const { error } = await supabase.from('documents').delete().eq('id', docId);
 
-    if (!error) {
+    if (error) {
+      console.error('Error deleting document:', error);
+      alert('Failed to delete document. Please try again.');
+    } else {
+      console.log('Document deleted successfully');
       loadDocuments();
     }
   };
@@ -150,20 +165,26 @@ export function DocumentsList({ profileId, isAdminView }: DocumentsListProps = {
               />
             </div>
 
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-3 justify-end pt-4 mt-2 border-t border-gray-200">
               <button
+                type="button"
                 onClick={() => {
+                  console.log('Cancel clicked');
                   setShowUpload(false);
                   setUploadData({ file_name: '', file_url: '', description: '' });
                 }}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-6 py-2 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
-                onClick={handleUpload}
+                type="button"
+                onClick={() => {
+                  console.log('Upload button clicked from UI!');
+                  handleUpload();
+                }}
                 disabled={uploading || !uploadData.file_name.trim() || !uploadData.file_url.trim()}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm flex items-center gap-2"
               >
                 {uploading ? (
                   <>

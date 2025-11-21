@@ -93,9 +93,12 @@ Deno.serve(async (req: Request) => {
         ? ELEVENLABS_PUBLIC_AGENT_ID 
         : ELEVENLABS_AUTHENTICATED_AGENT_ID;
 
-      console.log('Context type:', contextType);
-      console.log('Using agent:', contextType === "public" ? "PUBLIC" : "AUTHENTICATED");
-      console.log('Agent ID:', agentId);
+      console.log('🔍 Context type:', contextType);
+      console.log('🔍 Using agent:', contextType === "public" ? "PUBLIC" : "AUTHENTICATED");
+      console.log('🔍 Agent ID:', agentId);
+      console.log('🔍 Agent ID length:', agentId?.length || 0);
+      console.log('🔍 Public Agent ID configured:', !!ELEVENLABS_PUBLIC_AGENT_ID && ELEVENLABS_PUBLIC_AGENT_ID.length > 0);
+      console.log('🔍 Authenticated Agent ID configured:', !!ELEVENLABS_AUTHENTICATED_AGENT_ID && ELEVENLABS_AUTHENTICATED_AGENT_ID.length > 0);
 
       let conversationContext = "";
       if (contextType === "public") {
